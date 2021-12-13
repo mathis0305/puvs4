@@ -59,6 +59,32 @@ void free_mat(float** A) {
 	free(A);    // free memory for pointers pointing to the beginning of each row
 }
 
+float** serial_matrix(int d1, int d2, int d3, float** A, float** B) {
+	float** C;	                    // matrix
+	int i, j, k;			        // loop variables
+	C = alloc_mat(d1, d3);	        // no initialisation of C, because it gets filled by matmult
+
+	/* serial version of matmult */
+	printf("Perform matrix multiplication...\n");
+	for (i = 0; i < d1; i++)
+		for (j = 0; j < d3; j++)
+			for (k = 0; k < d2; k++)
+				C[i][j] += A[i][k] * B[k][j];
+	return C;
+}
+
+bool compare_function(float** A, int d1, int d2, int d3, float** A_, float** B_) {
+	float** B = serial_matrix(d1, d2, d3, A_, B_);
+	for (int i = 0; i < d1; i++) {
+		for (int j = 0; j < d3; j++) {
+			if (A[i][j] != B[i][j]) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 // ---------------------------------------------------------------------------
 
 int main(int argc, char* argv[])
@@ -67,7 +93,8 @@ int main(int argc, char* argv[])
 		taskid, // Task ID
 		numworkers, i, // Anzahl an Arbeitern
 		bsize, bpos, // Zeilenabschnitt von Matrix A
-		averow, extra; // Berechnung von Zeilenabschnitten
+		averow, extra, // Berechnung von Zeilenabschnitten
+		k, j; // Zählvariablen
 	float** A, ** B, ** C, ** D; // Matrizen
 	MPI_Status status; // Statusvariable
 	MPI_Init(&argc, &argv);
@@ -99,15 +126,26 @@ int main(int argc, char* argv[])
 			MPI_Send(&bsize, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
 			MPI_Send(A[bpos], bsize * D2, MPI_FLOAT, i, 1, MPI_COMM_WORLD);
 			MPI_Send(B[0], D2 * D3, MPI_FLOAT, i, 1, MPI_COMM_WORLD);
+		}
 
-			for (i = 1; i <= numworkers; i++) { // Empfangen der Ergebnisse von den Arbeitern
-				MPI_Recv(&bpos, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
-				MPI_Recv(&bsize, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
-				MPI_Recv(C[bpos], bsize * D3, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
-				printf("Received results from task %d\n", i);
-			}
-			printf("\nUsed %f seconds.\n", MPI_Wtime() - start); // Zeitmessung anhalten
-			// Ergebnis überprüfes
+		for (i = 1; i <= numworkers; i++) { // Empfangen der Ergebnisse von den Arbeitern
+			MPI_Recv(&bpos, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
+			MPI_Recv(&bsize, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
+			MPI_Recv(C[bpos], bsize * D3, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
+			printf("Received results from task %d\n", i);
+		}
+		printf("\nUsed %f seconds.\n", MPI_Wtime() - start); // Zeitmessung anhalten
+
+
+		// Ergebnis überprüfes
+		start = MPI_Wtime();
+		if (compare_function(C, D1, D2, D3, A, B)) {
+			printf("Funktioniert optimal!\n");
+		}
+		else {
+			printf("Funktioniert nicht so optimal!\n");
+		}
+		printf("\nUsed %f seconds for serial.\n", MPI_Wtime() - start);
 	}
 	//****************************** Worker Task ************************************
 	if (taskid > MASTER) { // Worker
