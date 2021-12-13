@@ -1,0 +1,2 @@
+add_executable(matmult_verteilt_1 matmult_verteilt_1.cpp)
+add_executable(matmult matmult.cpp)
