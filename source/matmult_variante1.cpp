@@ -5,9 +5,6 @@
 #define MASTER 0 // taskid von erstem task
 #define FROM_MASTER 1 // Nachrichtentypen
 #define FROM_WORKER 2
-#define D1 1000 // Zeilenanzahl von A und C
-#define D2 1000 // Spaltenanzahl von A und Zeilenanzahl von B
-#define D3 1000 // Spaltenanzahl von B und C
 
 // ---------------------------------------------------------------------------
 // allocate space for empty matrix A[row][col]
@@ -97,6 +94,19 @@ int main(int argc, char* argv[])
 		k, j; // Zählvariablen
 	float** A, ** B, ** C, ** D; // Matrizen
 	MPI_Status status; // Statusvariable
+
+	int D1 = 1000;
+	int D2 = 1000;
+	int D3 = 1000;
+
+	if (argc == 4)
+	{
+		D1 = atoi(argv[1]);
+		D2 = atoi(argv[2]);
+		D3 = atoi(argv[3]);
+	}
+	
+
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
 	MPI_Comm_size(MPI_COMM_WORLD, &numtasks);

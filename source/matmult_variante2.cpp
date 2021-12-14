@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
 		k, j; // Zählvariablen
 	float** A, ** B, ** C, ** D; // Matrizen
 	MPI_Status status[7]; // Statusvariable
-	MPI_Request request[7]; 
+	MPI_Request send_request[7], recv_request[7]; 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
 	MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
@@ -123,19 +123,25 @@ int main(int argc, char* argv[])
 				bsize = averow + 1;
 			} // Senden der Matrixblöcke an die Arbeiter
 			printf("Sending %d rows to task %d\n", bsize, i);
-			MPI_Isend(&bpos, 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request[0]);
-			MPI_Isend(&bsize, 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request[0]);
-			MPI_Isend(A[bpos], bsize * D2, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &request[0]);
-			MPI_Isend(B[0], D2 * D3, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &request[0]);
+			MPI_Isend(&bpos, 1, MPI_INT, i, 1, MPI_COMM_WORLD, &send_request[0]);
+			MPI_Wait(&send_request[0], &status[0]);
+			MPI_Isend(&bsize, 1, MPI_INT, i, 1, MPI_COMM_WORLD, &send_request[1]);
+			MPI_Wait(&send_request[1], &status[1]);
+			MPI_Isend(A[bpos], bsize * D2, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &send_request[2]);
+			MPI_Wait(&send_request[2], &status[2]);
+			MPI_Isend(B[0], D2 * D3, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &send_request[3]);
+			MPI_Wait(&send_request[3], &status[3]);
 		}
 		
 		for (i = 1; i <= numworkers; i++) { // Empfangen der Ergebnisse von den Arbeitern
-			MPI_Irecv(&bpos, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &request[1]);
-			MPI_Irecv(&bsize, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &request[1]);
-			MPI_Irecv(C[bpos], bsize * D3, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &request[1]);
+			MPI_Irecv(&bpos, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &recv_request[0]);
+			MPI_Wait(&recv_request[0], &status[0]);
+			MPI_Irecv(&bsize, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &recv_request[1]);
+			MPI_Wait(&recv_request[1], &status[0]);
+			MPI_Irecv(C[bpos], bsize * D3, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &recv_request[2]);
+			MPI_Wait(&recv_request[2], &status[0]);
 			printf("Received results from task %d\n", i);
 		}
-		MPI_Waitall(7, request, status);
 		
 		printf("\nUsed %f seconds.\n", MPI_Wtime() - start); // Zeitmessung anhalten
 
@@ -152,24 +158,31 @@ int main(int argc, char* argv[])
 	}
 	//****************************** Worker Task ************************************
 	if (taskid > MASTER) { // Worker
-		MPI_Irecv(&bpos, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &request[1]);
-		MPI_Irecv(&bsize, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &request[1]);
+		MPI_Irecv(&bpos, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &recv_request[3]);
+		MPI_Wait(&recv_request[3], &status[0]);
+		MPI_Irecv(&bsize, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &recv_request[4]);
+		MPI_Wait(&recv_request[4], &status[0]);
 
 		A = alloc_mat(bsize, D2); // Speicher für die Matrixblöcke holen
 		B = alloc_mat(D2, D3);
 		C = alloc_mat(bsize, D3);
 
-		MPI_Irecv(A[0], bsize * D2, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &request[1]);
-		MPI_Irecv(B[0], D2 * D3, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &request[1]);
+		MPI_Irecv(A[0], bsize * D2, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &recv_request[5]);
+		MPI_Wait(&recv_request[5], &status[0]);
+		MPI_Irecv(B[0], D2 * D3, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &recv_request[6]);
+		MPI_Wait(&recv_request[6], &status[0]);
 
 		for (i = 0; i < bsize; i++)
 			for (j = 0; j < D3; j++)
 				for (k = 0; k < D2; k++)
 					C[i][j] += A[i][k] * B[k][j];
 
-		MPI_Isend(&bpos, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, &request[0]);
-		MPI_Isend(&bsize, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, &request[0]);
-		MPI_Isend(C[0], bsize * D3, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &request[0]);
+		MPI_Isend(&bpos, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, &send_request[4]);
+		MPI_Wait(&send_request[4], &status[0]);
+		MPI_Isend(&bsize, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, &send_request[5]);
+		MPI_Wait(&send_request[5], &status[0]);
+		MPI_Isend(C[0], bsize * D3, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &send_request[6]);
+		MPI_Wait(&send_request[6], &status[0]);
 		//MPI_Waitall(7, request, status);
 		
 	}
