@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
 			MPI_Send(A[bpos], bsize * D2, MPI_FLOAT, i, 1, MPI_COMM_WORLD);
 			MPI_Send(B[0], D2 * D3, MPI_FLOAT, i, 1, MPI_COMM_WORLD);*/
 
-			MPI_Scatter(A, bsize * D2, MPI_FLOAT, A[bpos], bpos * D2, MPI_FLOAT, 0, MPI_COMM_WORLD);
+			MPI_Scatter(A[bpos], bsize * D2, MPI_FLOAT, A[bpos], bsize * D2, MPI_FLOAT, 0, MPI_COMM_WORLD);
 		}
 
 		for (i = 1; i <= numworkers; i++) { // Empfangen der Ergebnisse von den Arbeitern
@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
 			MPI_Recv(&bsize, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
 			MPI_Recv(C[bpos], bsize * D3, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);*/
 
-			MPI_Gather(C, bsize * D3, MPI_FLOAT, C[bpos], bpos * D3, MPI_FLOAT, 0, MPI_COMM_WORLD);
+			MPI_Gather(C[bpos], bsize * D3, MPI_FLOAT, C[bpos], bsize * D3, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 			printf("Received results from task %d\n", i);
 		}
@@ -167,7 +167,7 @@ int main(int argc, char* argv[])
 		/*MPI_Recv(A[0], bsize * D2, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
 		MPI_Recv(B[0], D2 * D3, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status); */
 		MPI_Bcast(B, D2 * D3, MPI_FLOAT, 0, MPI_COMM_WORLD);
-		MPI_Scatter(A, bsize * D2, MPI_FLOAT, A[bpos], bpos * D2, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		MPI_Scatter(A[bpos], bsize * D2, MPI_FLOAT, A[bpos], bsize * D2, MPI_FLOAT, 0, MPI_COMM_WORLD);
 		for (i = 0; i < bsize; i++)
 			for (j = 0; j < D3; j++)
 				for (k = 0; k < D2; k++)
@@ -176,7 +176,7 @@ int main(int argc, char* argv[])
 		MPI_Send(&bsize, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
 		MPI_Send(C[0], bsize * D3, MPI_FLOAT, 0, 2, MPI_COMM_WORLD);*/
 
-		MPI_Gather(C, bsize * D3, MPI_FLOAT, C[bpos], bpos * D3, MPI_FLOAT, 0, MPI_COMM_WORLD);
+		MPI_Gather(C[bpos], bsize * D3, MPI_FLOAT, C[bpos], bsize * D3, MPI_FLOAT, 0, MPI_COMM_WORLD);
 	}
 	MPI_Finalize();
 }
