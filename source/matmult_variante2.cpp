@@ -96,8 +96,8 @@ int main(int argc, char* argv[])
 		averow, extra, // Berechnung von Zeilenabschnitten
 		k, j; // Zählvariablen
 	float** A, ** B, ** C, ** D; // Matrizen
-	MPI_Status status[2]; // Statusvariable
-	MPI_Request request[2]; 
+	MPI_Status status[7]; // Statusvariable
+	MPI_Request request[7]; 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
 	MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
@@ -127,16 +127,15 @@ int main(int argc, char* argv[])
 			MPI_Isend(&bsize, 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request[0]);
 			MPI_Isend(A[bpos], bsize * D2, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &request[0]);
 			MPI_Isend(B[0], D2 * D3, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &request[0]);
-			MPI_Waitall(4, request, status);
 		}
-
+		
 		for (i = 1; i <= numworkers; i++) { // Empfangen der Ergebnisse von den Arbeitern
 			MPI_Irecv(&bpos, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &request[1]);
 			MPI_Irecv(&bsize, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &request[1]);
 			MPI_Irecv(C[bpos], bsize * D3, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &request[1]);
-			MPI_Waitall(3, request, status);
 			printf("Received results from task %d\n", i);
 		}
+		MPI_Waitall(7, request, status);
 		
 		printf("\nUsed %f seconds.\n", MPI_Wtime() - start); // Zeitmessung anhalten
 
@@ -171,8 +170,7 @@ int main(int argc, char* argv[])
 		MPI_Isend(&bpos, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, &request[0]);
 		MPI_Isend(&bsize, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, &request[0]);
 		MPI_Isend(C[0], bsize * D3, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &request[0]);
-
-		MPI_Waitall(7, request, status);
+		//MPI_Waitall(7, request, status);
 		
 	}
 	MPI_Finalize();
