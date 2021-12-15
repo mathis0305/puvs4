@@ -99,6 +99,16 @@ int main(int argc, char* argv[])
 	int D2 = 1000;
 	int D3 = 1000;
 
+	double start_gesamt,
+		   start_verteilung,
+		   berechnung,
+	   	   start_einsammeln,
+		   start_serial,
+		   end_gesamt,
+		   end_verteilung,
+		   end_einsammeln,
+	       end_serial;
+
 	if (argc == 4)
 	{
 		D1 = atoi(argv[1]);
@@ -120,7 +130,8 @@ int main(int argc, char* argv[])
 		A = alloc_mat(D1, D2); init_mat(A, D1, D2); // Speicher für Matrizen holen
 		B = alloc_mat(D2, D3); init_mat(B, D2, D3); // und initialisieren
 		C = alloc_mat(D1, D3);
-		double start = MPI_Wtime(); // Zeitmessung starten
+		//start_gesamt = MPI_Wtime(); // Zeitmessung starten
+		start_verteilung = MPI_Wtime();
 		numworkers = numtasks - 1; // Anzahl der Arbeiter
 		averow = D1 / numworkers; // Mittlere Blockgröße
 		extra = D1 % numworkers; // Restzeilen
@@ -131,34 +142,49 @@ int main(int argc, char* argv[])
 			else {
 				bsize = averow + 1;
 			} // Senden der Matrixblöcke an die Arbeiter
+
+
 			printf("Sending %d rows to task %d\n", bsize, i);
 			MPI_Send(&bpos, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
 			MPI_Send(&bsize, 1, MPI_INT, i, 1, MPI_COMM_WORLD);
 			MPI_Send(A[bpos], bsize * D2, MPI_FLOAT, i, 1, MPI_COMM_WORLD);
 			MPI_Send(B[0], D2 * D3, MPI_FLOAT, i, 1, MPI_COMM_WORLD);
 		}
-
+		end_verteilung = MPI_Wtime();
+		//start_einsammeln = MPI_Wtime();
 		for (i = 1; i <= numworkers; i++) { // Empfangen der Ergebnisse von den Arbeitern
 			MPI_Recv(&bpos, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
 			MPI_Recv(&bsize, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
 			MPI_Recv(C[bpos], bsize * D3, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &status);
 			printf("Received results from task %d\n", i);
 		}
-		printf("\nUsed %f seconds.\n", MPI_Wtime() - start); // Zeitmessung anhalten
+		//end_einsammeln = MPI_Wtime(); // Zeitmessung anhalten
+		//end_gesamt = MPI_Wtime();
+		//berechnung = (end_gesamt - start_gesamt) - (end_verteilung - start_verteilung) - (end_einsammeln - start_einsammeln);
+
 
 
 		// Ergebnis überprüfes
-		start = MPI_Wtime();
+		start_serial = MPI_Wtime();
 		if (compare_function(C, D1, D2, D3, A, B)) {
 			printf("Funktioniert optimal!\n");
 		}
 		else {
 			printf("Funktioniert nicht so optimal!\n");
 		}
-		printf("\nUsed %f seconds for serial.\n", MPI_Wtime() - start);
+		end_serial = MPI_Wtime();
+
+		//printf("\nGesamt: %f\n", end_gesamt - start_gesamt);
+		printf("Verteilung: %f\n", end_verteilung - start_verteilung);
+		//printf("Berechnung: %f\n", berechnung);
+		//printf("Einsammeln: %f\n", end_einsammeln - start_einsammeln);
+		printf("Seriell: %f\n\n", end_serial - start_serial);
 	}
 	//****************************** Worker Task ************************************
 	if (taskid > MASTER) { // Worker
+
+		double start_worker_verteilung = MPI_Wtime();
+
 		MPI_Recv(&bpos, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
 		MPI_Recv(&bsize, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
 		A = alloc_mat(bsize, D2); // Speicher für die Matrixblöcke holen
@@ -166,13 +192,23 @@ int main(int argc, char* argv[])
 		C = alloc_mat(bsize, D3);
 		MPI_Recv(A[0], bsize * D2, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
 		MPI_Recv(B[0], D2 * D3, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
+
+		printf("Worker verteilung: %f\n", MPI_Wtime() - start_worker_verteilung);
+		double start_worker_berechnung = MPI_Wtime();
+
 		for (i = 0; i < bsize; i++)
 			for (j = 0; j < D3; j++)
 				for (k = 0; k < D2; k++)
 					C[i][j] += A[i][k] * B[k][j];
+
+		printf("Worker berechnung: %f\n", MPI_Wtime() - start_worker_berechnung);
+		double start_worker_einsammeln = MPI_Wtime();
+
 		MPI_Send(&bpos, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
 		MPI_Send(&bsize, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
 		MPI_Send(C[0], bsize * D3, MPI_FLOAT, 0, 2, MPI_COMM_WORLD);
+
+		printf("Worker einsammeln: %f\n\n", MPI_Wtime() - start_worker_einsammeln);
 	}
 	MPI_Finalize();
 }
